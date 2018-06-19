@@ -9,7 +9,7 @@ spring-cloud-netflix-zuul-websocket is available from **Maven Central**
 <dependency>
   <groupId>com.github.mthizo247</groupId>
   <artifactId>spring-cloud-netflix-zuul-websocket</artifactId>
-  <version>1.0.0-RELEASE</version>
+  <version>1.0.8-RELEASE</version>
 </dependency>
 ```
 
@@ -51,6 +51,8 @@ zuul:
           end-points: /ws
           brokers:  /topic
           destination-prefixes: /app
+      reconnectRetries: 2
+      reconnectInterval: 10000
 ```
 
 With this you should have web sockets to your back-end service working correctly.

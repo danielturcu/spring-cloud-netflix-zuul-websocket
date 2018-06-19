@@ -16,24 +16,31 @@
 
 package com.github.mthizo247.cloud.netflix.zuul.web.socket;
 
+import com.github.mthizo247.cloud.netflix.zuul.web.proxytarget.ProxyTargetResolver;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.messaging.simp.stomp.StompCommand;
 import org.springframework.messaging.simp.stomp.StompHeaders;
 import org.springframework.messaging.simp.stomp.StompSession;
 import org.springframework.messaging.simp.stomp.StompSessionHandler;
 import org.springframework.util.ErrorHandler;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
+import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.WebSocketHttpHeaders;
 import org.springframework.web.socket.WebSocketSession;
 import org.springframework.web.socket.client.ConnectionManagerSupport;
 import org.springframework.web.socket.messaging.WebSocketStompClient;
+import org.springframework.web.util.UriComponentsBuilder;
 
+import java.io.IOException;
 import java.lang.reflect.Type;
+import java.net.URI;
 import java.security.Principal;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * A web socket connection manager bridge between client and backend server via zuul
@@ -51,11 +58,24 @@ public class ProxyWebSocketConnectionManager extends ConnectionManagerSupport
     private Map<String, StompSession.Subscription> subscriptions = new ConcurrentHashMap<>();
     private ErrorHandler errorHandler;
     private SimpMessagingTemplate messagingTemplate;
+    private ProxyTargetResolver proxyTargetResolver;
+    private ZuulWebSocketProperties.WsBrokerage wsBrokerage;
+    private String path;
+    private String query;
+    private AtomicInteger atomicInteger = new AtomicInteger(0);
 
-    public ProxyWebSocketConnectionManager(SimpMessagingTemplate messagingTemplate,
-                                           WebSocketStompClient stompClient, WebSocketSession userAgentSession,
-                                           WebSocketHttpHeadersCallback httpHeadersCallback, String uri) {
+    ProxyWebSocketConnectionManager(ProxyTargetResolver proxyTargetResolver,
+                                    ZuulWebSocketProperties.WsBrokerage wsBrokerage,
+                                    String path,
+                                    String query,
+                                    SimpMessagingTemplate messagingTemplate,
+                                    WebSocketStompClient stompClient, WebSocketSession userAgentSession,
+                                    WebSocketHttpHeadersCallback httpHeadersCallback, String uri) {
         super(uri);
+        this.wsBrokerage = wsBrokerage;
+        this.path = path;
+        this.query = query;
+        this.proxyTargetResolver = proxyTargetResolver;
         this.messagingTemplate = messagingTemplate;
         this.stompClient = stompClient;
         this.userAgentSession = userAgentSession;
@@ -76,21 +96,51 @@ public class ProxyWebSocketConnectionManager extends ConnectionManagerSupport
 
     @Override
     protected void openConnection() {
-        connect();
+        connect(getUri());
     }
 
-    public void connect() {
+    private void connect(URI uri) {
         try {
             serverSession = stompClient
-                    .connect(getUri().toString(), buildWebSocketHttpHeaders(), this)
+                    .connect(uri.toString(), buildWebSocketHttpHeaders(), this)
                     .get();
         } catch (Exception e) {
-            logger.error("Error connecting to web socket uri " + getUri(), e);
+            logger.error("Error connecting to web socket uri " + uri, e);
             throw new RuntimeException(e);
         }
     }
 
-    public void reconnect(final long delay) {
+    public void reconnect(final long delay, final int retries) {
+        int count = atomicInteger.get();
+        URI uri = getUri();
+        if (count >= retries && ZuulWebSocketProperties.ENDLESS_RECONNECT_RETRIES != retries) {
+            logger.warn("Reached number of retries. Attempting change of server URL.");
+            URI routeTarget = proxyTargetResolver.resolveTarget(wsBrokerage);
+            if (routeTarget == null) {
+                logger.error("Unable to find any alive servers to connect, closing user session.");
+                try {
+                    userAgentSession
+                            .close(new CloseStatus(4999, "Service not available"));
+                }
+                catch (IOException e) {
+                    throw new RuntimeException("SESSION_TERMINATE");
+                }
+                return;
+                //                throw new RuntimeException("SESSION_TERMINATE");
+            }
+
+            String uriAsString = ServletUriComponentsBuilder
+                    .fromUri(routeTarget)
+                    .path(path)
+                    .replaceQuery(query)
+                    .toUriString();
+
+            URI newURI = UriComponentsBuilder.fromUriString(uriAsString).build().encode().toUri();
+            logger.warn("Changing target URI from '" + uri.toString() + "' to '" + newURI.toString() + "'");
+            uri = UriComponentsBuilder.fromUriString(uriAsString).build().encode().toUri();
+            atomicInteger.set(0);
+        }
+        atomicInteger.incrementAndGet();
         if (delay > 0) {
             logger.warn("Connection lost or refused, will attempt to reconnect after "
                     + delay + " millis");
@@ -103,11 +153,11 @@ public class ProxyWebSocketConnectionManager extends ConnectionManagerSupport
 
         Set<String> destinations = new HashSet<>(subscriptions.keySet());
 
-        connect();
+        connect(uri);
 
         for (String destination : destinations) {
             try {
-                subscribe(destination);
+                subscribe(destination, uri);
             } catch (Exception ignored) {
                 // nothing
             }
@@ -197,14 +247,18 @@ public class ProxyWebSocketConnectionManager extends ConnectionManagerSupport
         return copy;
     }
 
-    private void connectIfNecessary() {
+    private void connectIfNecessary(URI uri) {
         if (!isConnected()) {
-            connect();
+            connect(uri);
         }
     }
 
-    public void subscribe(String destination) throws Exception {
-        connectIfNecessary();
+    public void subscribe(String destination) {
+        subscribe(destination, getUri());
+    }
+
+    private void subscribe(String destination, URI uri) {
+        connectIfNecessary(uri);
         StompSession.Subscription subscription = serverSession.subscribe(destination,
                 this);
         subscriptions.put(destination, subscription);
@@ -213,7 +267,7 @@ public class ProxyWebSocketConnectionManager extends ConnectionManagerSupport
     public void unsubscribe(String destination) {
         StompSession.Subscription subscription = subscriptions.remove(destination);
         if (subscription != null) {
-            connectIfNecessary();
+            connectIfNecessary(getUri());
             subscription.unsubscribe();
         }
     }

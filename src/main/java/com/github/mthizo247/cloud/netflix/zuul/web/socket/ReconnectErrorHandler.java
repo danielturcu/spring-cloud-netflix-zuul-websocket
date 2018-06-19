@@ -11,13 +11,16 @@ import java.io.IOException;
  * Created by ronald22 on 06/04/2017.
  */
 public class ReconnectErrorHandler implements ProxyWebSocketErrorHandler {
-    private static final long CONNECTION_LOST_RECONNECT_INTERVAL = 10000;
+    private int reconnectRetries;
+    private long reconnectInterval;
     private final Log logger = LogFactory
             .getLog(ReconnectErrorHandler.class);
     private ErrorAnalyzer errorAnalyzer;
 
-    public ReconnectErrorHandler(ErrorAnalyzer errorAnalyzer) {
+    public ReconnectErrorHandler(ErrorAnalyzer errorAnalyzer, int reconnectRetries, long reconnectInterval) {
         this.errorAnalyzer = errorAnalyzer;
+        this.reconnectRetries = reconnectRetries;
+        this.reconnectInterval = reconnectInterval;
     }
 
     @Override
@@ -67,7 +70,7 @@ public class ReconnectErrorHandler implements ProxyWebSocketErrorHandler {
         Thread t = new Thread(new Runnable() {
             @Override
             public void run() {
-                clientConnectionManager.reconnect(CONNECTION_LOST_RECONNECT_INTERVAL);
+                clientConnectionManager.reconnect(reconnectInterval, reconnectRetries);
             }
         });
         t.setDaemon(true);

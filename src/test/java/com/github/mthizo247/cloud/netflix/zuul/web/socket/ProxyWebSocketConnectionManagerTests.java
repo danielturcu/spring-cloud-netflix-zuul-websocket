@@ -53,7 +53,7 @@ public class ProxyWebSocketConnectionManagerTests {
     @Before
     public void init() throws Exception {
         String uri = "http://example.com";
-        proxyConnectionManager = new ProxyWebSocketConnectionManager(messagingTemplate,
+        proxyConnectionManager = new ProxyWebSocketConnectionManager(null, null, null, null, messagingTemplate,
                 stompClient, wsSession, headersCallback, uri);
 
         proxyConnectionManager.errorHandler(errHandler);

@@ -249,7 +249,7 @@ public class ZuulWebSocketConfiguration extends AbstractWebSocketMessageBrokerCo
 
     @Bean
     public ProxyWebSocketErrorHandler reconnectErrorHandler() {
-        return new ReconnectErrorHandler(new DefaultErrorAnalyzer());
+        return new ReconnectErrorHandler(new DefaultErrorAnalyzer(), zuulWebSocketProperties.getReconnectRetries(), zuulWebSocketProperties.getReconnectInterval());
     }
 
     @Bean

@@ -180,6 +180,10 @@ public class ProxyWebSocketHandler extends WebSocketHandlerDecorator {
                 .toUriString();
 
         ProxyWebSocketConnectionManager connectionManager = new ProxyWebSocketConnectionManager(
+                proxyTargetResolver,
+                wsBrokerage,
+                path,
+                sessionUri.getQuery(),
                 messagingTemplate, stompClient, session, headersCallback, uri);
         connectionManager.errorHandler(this.errorHandler);
         managers.put(session, connectionManager);

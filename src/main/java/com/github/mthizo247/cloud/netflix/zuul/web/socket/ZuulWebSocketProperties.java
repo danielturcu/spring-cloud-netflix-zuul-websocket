@@ -30,11 +30,32 @@ import org.springframework.util.StringUtils;
  */
 @ConfigurationProperties("zuul.ws")
 public class ZuulWebSocketProperties {
+
+	static final int ENDLESS_RECONNECT_RETRIES = -1;
+	private static final long DEFAULT_RECONNECT_INTERVAL = 10000;
+	private int reconnectRetries = ENDLESS_RECONNECT_RETRIES;
+	private long reconnectInterval = DEFAULT_RECONNECT_INTERVAL;
 	private boolean enabled = true;
 	private Map<String, WsBrokerage> brokerages = new HashMap<>();
 
 	public boolean isEnabled() {
 		return enabled;
+	}
+
+	public int getReconnectRetries() {
+		return reconnectRetries;
+	}
+
+	public void setReconnectRetries(int reconnectRetries) {
+		this.reconnectRetries = reconnectRetries;
+	}
+
+	public long getReconnectInterval() {
+		return reconnectInterval;
+	}
+
+	public void setReconnectInterval(long reconnectInterval) {
+		this.reconnectInterval = reconnectInterval;
 	}
 
 	public void setEnabled(boolean enabled) {
