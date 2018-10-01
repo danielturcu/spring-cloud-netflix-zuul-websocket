@@ -20,7 +20,6 @@ import com.github.mthizo247.cloud.netflix.zuul.web.authentication.BasicAuthPrinc
 import com.github.mthizo247.cloud.netflix.zuul.web.authentication.CompositeHeadersCallback;
 import com.github.mthizo247.cloud.netflix.zuul.web.authentication.LoginCookieHeadersCallback;
 import com.github.mthizo247.cloud.netflix.zuul.web.authentication.OAuth2BearerPrincipalHeadersCallback;
-import com.github.mthizo247.cloud.netflix.zuul.web.filter.ProxyRedirectFilter;
 import com.github.mthizo247.cloud.netflix.zuul.web.proxytarget.CompositeProxyTargetResolver;
 import com.github.mthizo247.cloud.netflix.zuul.web.proxytarget.EurekaProxyTargetResolver;
 import com.github.mthizo247.cloud.netflix.zuul.web.proxytarget.LoadBalancedProxyTargetResolver;
@@ -37,7 +36,6 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplicat
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.cloud.client.discovery.DiscoveryClient;
 import org.springframework.cloud.client.loadbalancer.LoadBalancerClient;
-import org.springframework.cloud.netflix.zuul.filters.RouteLocator;
 import org.springframework.cloud.netflix.zuul.filters.ZuulProperties;
 import org.springframework.context.ApplicationListener;
 import org.springframework.context.annotation.Bean;
@@ -256,11 +254,6 @@ public class ZuulWebSocketConfiguration extends AbstractWebSocketMessageBrokerCo
     @Primary
     public ProxyWebSocketErrorHandler compositeErrorHandler(final List<ProxyWebSocketErrorHandler> errorHandlers) {
         return new CompositeErrorHandler(errorHandlers);
-    }
-
-    @Bean
-    public ProxyRedirectFilter proxyRedirectFilter(RouteLocator routeLocator) {
-        return new ProxyRedirectFilter(routeLocator);
     }
 
     @PostConstruct
