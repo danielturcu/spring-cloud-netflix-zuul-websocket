@@ -26,6 +26,10 @@ import com.github.mthizo247.cloud.netflix.zuul.web.proxytarget.LoadBalancedProxy
 import com.github.mthizo247.cloud.netflix.zuul.web.proxytarget.ProxyTargetResolver;
 import com.github.mthizo247.cloud.netflix.zuul.web.proxytarget.UrlProxyTargetResolver;
 import com.github.mthizo247.cloud.netflix.zuul.web.util.DefaultErrorAnalyzer;
+import com.marcosbarbero.cloud.autoconfigure.zuul.ratelimit.config.RateLimitKeyGenerator;
+import com.marcosbarbero.cloud.autoconfigure.zuul.ratelimit.config.RateLimitUtils;
+import com.marcosbarbero.cloud.autoconfigure.zuul.ratelimit.config.RateLimiter;
+import com.marcosbarbero.cloud.autoconfigure.zuul.ratelimit.config.properties.RateLimitProperties;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.AutoConfigureAfter;
@@ -36,6 +40,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplicat
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.cloud.client.discovery.DiscoveryClient;
 import org.springframework.cloud.client.loadbalancer.LoadBalancerClient;
+import org.springframework.cloud.netflix.zuul.filters.RouteLocator;
 import org.springframework.cloud.netflix.zuul.filters.ZuulProperties;
 import org.springframework.context.ApplicationListener;
 import org.springframework.context.annotation.Bean;
@@ -55,7 +60,6 @@ import org.springframework.web.socket.config.annotation.DelegatingWebSocketMessa
 import org.springframework.web.socket.config.annotation.SockJsServiceRegistration;
 import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
 import org.springframework.web.socket.config.annotation.WebSocketTransportRegistration;
-import org.springframework.web.socket.handler.WebSocketHandlerDecoratorFactory;
 import org.springframework.web.socket.messaging.WebSocketStompClient;
 import org.springframework.web.socket.sockjs.client.SockJsClient;
 import org.springframework.web.socket.sockjs.client.Transport;
@@ -98,6 +102,16 @@ public class ZuulWebSocketConfiguration extends AbstractWebSocketMessageBrokerCo
     @Autowired
     @Qualifier("compositeHeadersCallback")
     WebSocketHttpHeadersCallback webSocketHttpHeadersCallback;
+    @Autowired
+    private RateLimitProperties rateLimitProperties;
+    @Autowired
+    private RateLimitUtils rateLimitUtils;
+    @Autowired
+    private RateLimiter rateLimiter;
+    @Autowired
+    private RateLimitKeyGenerator rateLimitKeyGenerator;
+    @Autowired
+    private RouteLocator routeLocator;
 
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
@@ -152,17 +166,14 @@ public class ZuulWebSocketConfiguration extends AbstractWebSocketMessageBrokerCo
 
     @Override
     public void configureWebSocketTransport(WebSocketTransportRegistration registration) {
-        registration.addDecoratorFactory(new WebSocketHandlerDecoratorFactory() {
-            @Override
-            public WebSocketHandler decorate(WebSocketHandler handler) {
-                ProxyWebSocketHandler proxyWebSocketHandler = new ProxyWebSocketHandler(
-                        handler, stompClient, webSocketHttpHeadersCallback,
-                        messagingTemplate,
-                        proxyTargetResolver,
-                        zuulWebSocketProperties);
-                proxyWebSocketHandler.errorHandler(proxyWebSocketErrorHandler);
-                return proxyWebSocketHandler;
-            }
+        registration.addDecoratorFactory(handler -> {
+            ProxyWebSocketHandler proxyWebSocketHandler = new ProxyWebSocketHandler(
+                    handler, stompClient, webSocketHttpHeadersCallback,
+                    messagingTemplate,
+                    proxyTargetResolver,
+                    zuulWebSocketProperties, rateLimitProperties, routeLocator, rateLimitUtils, rateLimiter, rateLimitKeyGenerator);
+            proxyWebSocketHandler.errorHandler(proxyWebSocketErrorHandler);
+            return proxyWebSocketHandler;
         });
     }
 

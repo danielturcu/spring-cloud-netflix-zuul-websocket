@@ -1,5 +1,7 @@
 # spring-cloud-netflix-zuul-websocket
 A simple library to enable Zuul reverse proxy web socket support in spring applications.
+The library has rate limit support using the https://github.com/marcosbarbero/spring-cloud-zuul-ratelimit library.
+The rate limit support is optional and can be disabled.
 
 ## USAGE
 
@@ -45,6 +47,33 @@ zuul:
       path: /**
       url: http://localhost:7079
       customSensitiveHeaders: true
+  ratelimit:
+    key-prefix: your-prefix
+    enabled: true
+    repository: REDIS
+    behind-proxy: true
+    default-policy-list: #optional - will apply unless specific policy exists
+      - limit: 10 #optional - request number limit per refresh interval window
+        quota: 1000 #optional - request time limit per refresh interval window (in seconds)
+        refresh-interval: 60 #default value (in seconds)
+        type: #optional
+          - user
+          - origin
+          - url
+    policy-list:
+      hello:
+        - limit: 10 #optional - request number limit per refresh interval window
+          quota: 1000 #optional - request time limit per refresh interval window (in seconds)
+          refresh-interval: 60 #default value (in seconds)
+          type: #optional
+            - user
+            - origin
+            - url
+        - type: #optional value for each type
+            - user=anonymous
+            - origin=somemachine.com
+            - url=/api #url prefix
+            - role=user
    ws:
       brokerages:
         hello:
