@@ -246,7 +246,7 @@ public class ProxyWebSocketHandler extends WebSocketHandlerDecorator {
     }
 
     private void checkRateLimitReached(WebSocketSession session) {
-        if (!properties.isEnabled()) {
+        if (properties == null || !properties.isEnabled()) {
             return;
         }
         HttpServletRequest request = HttpServletRequestBuilder.request(session.getRemoteAddress(), session.getHandshakeHeaders());

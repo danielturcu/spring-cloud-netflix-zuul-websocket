@@ -102,15 +102,15 @@ public class ZuulWebSocketConfiguration extends AbstractWebSocketMessageBrokerCo
     @Autowired
     @Qualifier("compositeHeadersCallback")
     WebSocketHttpHeadersCallback webSocketHttpHeadersCallback;
-    @Autowired
+    @Autowired(required = false)
     private RateLimitProperties rateLimitProperties;
-    @Autowired
+    @Autowired(required = false)
     private RateLimitUtils rateLimitUtils;
-    @Autowired
+    @Autowired(required = false)
     private RateLimiter rateLimiter;
-    @Autowired
+    @Autowired(required = false)
     private RateLimitKeyGenerator rateLimitKeyGenerator;
-    @Autowired
+    @Autowired(required = false)
     private RouteLocator routeLocator;
 
     @Override
